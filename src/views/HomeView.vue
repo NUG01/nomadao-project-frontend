@@ -1,14 +1,23 @@
 <script>
 import { ref, onMounted, watch } from "vue";
 import axios from "@/config/axios/index.js";
+import { Form } from 'vee-validate';
+
 export default {
+  components:{Form},
   setup() {
     const gameStarted=ref(false)
     const disableGame=ref(false)
     const notEnough=ref(false)
     const dataIsFetched=ref(false)
+    const balanceFormActivated=ref(false)
+    const withdrawFormActivated=ref(false)
     const balance=ref(0)
+    const amount=ref('')
+    const amountWithdraw=ref('')
     const value=ref('?')
+    const numberRegex=/^[0-9]{1,}$/
+
 
 
     onMounted(async()=>{
@@ -50,22 +59,72 @@ export default {
       }
     }
 
-    function addBalance(){
-      notEnough.value=false
-      window.location.href=import.meta.env.VITE_API_BASE_URL+'create-checkout-session';
+ 
 
+   async function addBalance(){
+     notEnough.value=false
+    if(!(amount.value).match(numberRegex)){
+     return
+    }
+    const res= await axios.post('create-checkout-session', {
+      amount: amount.value
+      })
+      window.location.href=res.data;
+    }
+
+
+
+   async function withdraw(){
+    if(!(amountWithdraw.value).match(numberRegex) || amountWithdraw.value>=balance.value-5){
+     return
+    }
+    const res= await axios.post('withdraw', {
+      amount: amountWithdraw.value
+      })
+      balance.value=res.data
+      withdrawFormActivated.value=false
     }
    
 
-    return {gameStarted, balance, value, play, disableGame, enableGame, notEnough, addBalance, dataIsFetched}
+    return {
+            gameStarted, 
+            balance,
+            value, 
+            play, 
+            disableGame,
+            enableGame, 
+            notEnough, 
+            addBalance, 
+            dataIsFetched, 
+            amount,
+            balanceFormActivated,
+            withdrawFormActivated,
+            amountWithdraw,
+            withdraw
+       }
   },
 }
 </script>
 
 <template>
   <main v-if="dataIsFetched" class="w-[100vw] h-[100vh] bg-gray-600 flex items-center justify-center">
+<div v-if="balanceFormActivated" class="absolute top-0 left-0 w-[100vw] h-[100vh]">
+  <div @click="balanceFormActivated=false" class="absolute top-0 left-0 w-[100vw] h-[100vh] bg-[#000] opacity-[0.5] z-30"></div>
+<Form @submit="addBalance" class="absolute bg-gray-500 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[30%] py-[5rem] px-[7rem] rounded-[3px] flex flex-col items-center justify-center">
+  <input v-model="amount" type="text" name="amount" id="amount" class="w-[100%] h-[6.3rem] text-[2.4rem] text-[#636363] border-[#cdcdcd] focus:border-[#a7a7a7] focus:border-[1.5px] border-[1px] border-solid rounded-[3px] bg-[#f6f7f7c1] pl-[1.6rem]" />
+<button type="submit" class="flex items-center justify-center bg-[#0095f6] text-[#fff] text-[2.4rem] py-[1rem] font-[500] hover:bg-[#0074cc] px-[3rem] rounded-[5px] mt-[2rem]">Deposit</button>
+</Form>
+</div>
+<div v-if="withdrawFormActivated" class="absolute top-0 left-0 w-[100vw] h-[100vh]">
+  <div @click="withdrawFormActivated=false" class="absolute top-0 left-0 w-[100vw] h-[100vh] bg-[#000] opacity-[0.5] z-30"></div>
+<Form @submit="withdraw" class="absolute bg-gray-500 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[30%] py-[5rem] px-[7rem] rounded-[3px] flex flex-col items-center justify-center">
+  <input v-model="amountWithdraw" type="text" name="amount" id="amount" class="w-[100%] h-[6.3rem] text-[2.4rem] text-[#636363] border-[#cdcdcd] focus:border-[#a7a7a7] focus:border-[1.5px] border-[1px] border-solid rounded-[3px] bg-[#f6f7f7c1] pl-[1.6rem]" />
+<button type="submit" class="flex items-center justify-center bg-[#0095f6] text-[#fff] text-[2.4rem] py-[1rem] font-[500] hover:bg-[#0074cc] px-[3rem] rounded-[5px] mt-[2rem]">Withdraw</button>
+</Form>
+</div>
      <div v-if="gameStarted"  class="absolute right-0 top-0 -translate-x-[7rem] translate-y-[2rem] text-[#fff] text-[2.4rem]">Balance: $<span>{{ balance }}</span></div>
-     <div @click="addBalance" v-if="gameStarted"  class="absolute right-0 top-0 -translate-x-[7rem] translate-y-[6rem] text-[#fff] text-[1.6rem] bg-gray-900 px-[1rem] py-[0.6rem] rounded-[7px] cursor-pointer hover:bg-gray-800">Add balance</div>
+     <div @click="balanceFormActivated=true" v-if="gameStarted"  class="absolute right-0 top-0 -translate-x-[7rem] translate-y-[6rem] text-[#fff] text-[1.6rem] bg-gray-900 px-[1rem] py-[0.6rem] rounded-[7px] cursor-pointer hover:bg-gray-800">Add balance</div>
+     <div @click="withdrawFormActivated=true" v-if="gameStarted"  class="absolute right-0 top-0 -translate-x-[7rem] translate-y-[10.5rem] text-[#fff] text-[1.6rem] bg-gray-500 px-[1rem] py-[0.6rem] rounded-[7px] cursor-pointer hover:bg-gray-400">Withdraw</div>
       <div class="flex flex-col items-center justify-center mb-[5rem]">
       <div @click="gameStarted=true" :class="[gameStarted ? 'fadeaway' : '']" class="text-[#fff] text-[3rem] px-[3rem] py-[2rem] bg-[#002] cursor-pointer rounded-[9px] opacity-1">Start Game</div>
         <p v-if="notEnough" class="text-[3rem] font-[600] text-red-500 mb-[5rem] text-center">Not enough balance! Deposit to continue</p>
